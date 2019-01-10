@@ -58,6 +58,8 @@ public class SerializeConfig {
     private static boolean                                guavaError      = false;
     private static boolean                                jsonnullError   = false;
 
+    private static boolean                                jodaError       = false;
+
     private boolean                                       asm             = !ASMUtils.IS_ANDROID;
     private ASMSerializerFactory                          asmFactory;
     protected String                                      typeKey         = JSON.DEFAULT_TYPE_KEY;
@@ -66,6 +68,12 @@ public class SerializeConfig {
     private final IdentityHashMap<Type, ObjectSerializer> serializers;
 
     private final boolean                                 fieldBased;
+
+    private long[]                                        denyClasses =
+            {
+                    4165360493669296979L,
+                    4446674157046724083L
+            };
     
 	public String getTypeKey() {
 		return typeKey;
@@ -93,6 +101,12 @@ public class SerializeConfig {
     }
 
     public final ObjectSerializer createJavaBeanSerializer(Class<?> clazz) {
+        String className = clazz.getName();
+        long hashCode64 = TypeUtils.fnv1a_64(className);
+	    if (Arrays.binarySearch(denyClasses, hashCode64) >= 0) {
+	        throw new JSONException("not support class : " + className);
+        }
+
 	    SerializeBeanInfo beanInfo = TypeUtils.buildBeanInfo(clazz, null, propertyNamingStrategy, fieldBased);
 	    if (beanInfo.fields.length == 0 && Iterable.class.isAssignableFrom(clazz)) {
 	        return MiscCodec.instance;
@@ -516,6 +530,8 @@ public class SerializeConfig {
                 put(clazz, writer = ToStringSerializer.instance);
             } else if (Iterator.class.isAssignableFrom(clazz)) {
                 put(clazz, writer = MiscCodec.instance);
+            } else if (org.w3c.dom.Node.class.isAssignableFrom(clazz)) {
+                put(clazz, writer = MiscCodec.instance);
             } else {
                 if (className.startsWith("java.awt.") //
                     && AwtCodec.support(clazz) //
@@ -641,6 +657,7 @@ public class SerializeConfig {
                         String[] names = new String[] {
                                 "com.google.common.collect.HashMultimap",
                                 "com.google.common.collect.LinkedListMultimap",
+                                "com.google.common.collect.LinkedHashMultimap",
                                 "com.google.common.collect.ArrayListMultimap",
                                 "com.google.common.collect.TreeMultimap"
                         };
@@ -667,8 +684,37 @@ public class SerializeConfig {
                     }
                 }
 
+                if ((!jodaError) && className.startsWith("org.joda.")) {
+                    try {
+                        String[] names = new String[] {
+                                "org.joda.time.LocalDate",
+                                "org.joda.time.LocalDateTime",
+                                "org.joda.time.LocalTime",
+                                "org.joda.time.Instant",
+                                "org.joda.time.DateTime",
+                                "org.joda.time.Period",
+                                "org.joda.time.Duration",
+                                "org.joda.time.DateTimeZone",
+                                "org.joda.time.UTCDateTimeZone",
+                                "org.joda.time.tz.CachedDateTimeZone",
+                                "org.joda.time.tz.FixedDateTimeZone",
+                        };
+
+                        for (String name : names) {
+                            if (name.equals(className)) {
+                                put(Class.forName(name), writer = JodaCodec.instance);
+                                return writer;
+                            }
+                        }
+                    } catch (ClassNotFoundException e) {
+                        // skip
+                        jodaError = true;
+                    }
+                }
+
                 Class[] interfaces = clazz.getInterfaces();
                 if (interfaces.length == 1 && interfaces[0].isAnnotation()) {
+                    put(clazz, AnnotationSerializer.instance);
                     return AnnotationSerializer.instance;
                 }
 

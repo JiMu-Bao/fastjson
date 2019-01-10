@@ -16,17 +16,13 @@
 package com.alibaba.fastjson.parser;
 
 import java.io.Closeable;
-import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.MathContext;
 import java.util.*;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
-import com.alibaba.fastjson.annotation.JSONType;
 import com.alibaba.fastjson.util.IOUtils;
-import com.alibaba.fastjson.util.TypeUtils;
 
 import static com.alibaba.fastjson.parser.JSONToken.*;
 
@@ -209,7 +205,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
                         }
 
                         token = EOF;
-                        pos = bp = eofPos;
+                        eofPos = pos = bp;
                     } else {
                         if (ch <= 31 || ch == 127) {
                             next();
@@ -1186,6 +1182,38 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
         return true;
     }
 
+    public int matchField(long fieldNameHash) {
+        throw new UnsupportedOperationException();
+    }
+
+    public boolean seekArrayToItem(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    public int seekObjectToField(long fieldNameHash, boolean deepScan) {
+        throw new UnsupportedOperationException();
+    }
+
+    public int seekObjectToField(long[] fieldNameHash) {
+        throw new UnsupportedOperationException();
+    }
+
+    public int seekObjectToFieldDeepScan(long fieldNameHash) {
+        throw new UnsupportedOperationException();
+    }
+
+    public void skipObject() {
+        throw new UnsupportedOperationException();
+    }
+
+    public void skipObject(boolean valid) {
+        throw new UnsupportedOperationException();
+    }
+
+    public void skipArray() {
+        throw new UnsupportedOperationException();
+    }
+
     public abstract int indexOf(char ch, int startIndex);
 
     public abstract String addSymbol(int offset, int len, int hash, final SymbolTable symbolTable);
@@ -1692,7 +1720,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
                 && charAt(bp + offset + 1) == 'l'
                 && charAt(bp + offset + 2) == 'l'
                 && charAt(bp + offset + 3) == seperator
-                ) {
+        ) {
             bp += 5;
             ch = charAt(bp);
             matchStat = VALUE_NULL;
@@ -2408,7 +2436,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
 
         float value;
         if (chLocal >= '0' && chLocal <= '9') {
-            int intVal = chLocal - '0';
+            long intVal = chLocal - '0';
             for (;;) {
                 chLocal = charAt(bp + (offset++));
                 if (chLocal >= '0' && chLocal <= '9') {
@@ -2419,7 +2447,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
                 }
             }
 
-            int power = 1;
+            long power = 1;
             boolean small = (chLocal == '.');
             if (small) {
                 chLocal = charAt(bp + (offset++));
@@ -2473,7 +2501,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
             }
 
             if ((!exp) && count < 17) {
-                value = ((float) intVal) / power;
+                value = (float) (((double) intVal) / power);
                 if (negative) {
                     value = -value;
                 }
@@ -2653,7 +2681,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
             }
 
             if ((!exp) && count < 17) {
-                value = ((float) intVal) / power;
+                value = (float) (((double) intVal) / power);
                 if (negative) {
                     value = -value;
                 }
@@ -2790,7 +2818,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
                 count = bp + offset - start - 1;
             }
 
-            if (!exp && count < 20) {
+            if (!exp && count < 17) {
                 value = ((double) intVal) / power;
                 if (negative) {
                     value = -value;
@@ -3427,7 +3455,7 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
                 count = bp + offset - start - 1;
             }
 
-            if (!exp && count < 20) {
+            if (!exp && count < 17) {
                 value = ((double) intVal) / power;
                 if (negative) {
                     value = -value;
@@ -4891,6 +4919,12 @@ public abstract class JSONLexerBase implements JSONLexer, Closeable {
 
         np = bp;
         next();
+
+        if (ch == '\'') {
+            next();
+            token = JSONToken.HEX;
+            return;
+        }
 
         for (int i = 0;;++i) {
             char ch = next();

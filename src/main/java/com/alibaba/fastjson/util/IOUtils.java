@@ -37,20 +37,14 @@ import com.alibaba.fastjson.JSONException;
  */
 public class IOUtils {
     
-    public  final  static String FASTJSON_PROPERTIES  ="fastjson.properties";
-    
-    public final static String FASTJSON_COMPATIBLEWITHJAVABEAN="fastjson.compatibleWithJavaBean";
-    
-    public final static String FASTJSON_COMPATIBLEWITHFIELDNAME="fastjson.compatibleWithFieldName";
-    
-    public final static Properties DEFAULT_PROPERTIES =new Properties();    
-
-    public final static Charset   UTF8                 = Charset.forName("UTF-8");
-    
-    public final static char[]    DIGITS                     = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',
-            'B', 'C', 'D', 'E', 'F'                         };
-
-    public final static boolean[] firstIdentifierFlags       = new boolean[256];
+    public final static String     FASTJSON_PROPERTIES              = "fastjson.properties";
+    public final static String     FASTJSON_COMPATIBLEWITHJAVABEAN  = "fastjson.compatibleWithJavaBean";
+    public final static String     FASTJSON_COMPATIBLEWITHFIELDNAME = "fastjson.compatibleWithFieldName";
+    public final static Properties DEFAULT_PROPERTIES               = new Properties();
+    public final static Charset    UTF8                             = Charset.forName("UTF-8");
+    public final static char[]     DIGITS                           = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+    public final static boolean[]  firstIdentifierFlags             = new boolean[256];
+    public final static boolean[]  identifierFlags                  = new boolean[256];
     static {
         for (char c = 0; c < firstIdentifierFlags.length; ++c) {
             if (c >= 'A' && c <= 'Z') {
@@ -61,11 +55,7 @@ public class IOUtils {
                 firstIdentifierFlags[c] = true;
             }
         }
-    }
 
-    public final static boolean[] identifierFlags            = new boolean[256];
-
-    static {
         for (char c = 0; c < identifierFlags.length; ++c) {
             if (c >= 'A' && c <= 'Z') {
                 identifierFlags[c] = true;
@@ -77,9 +67,7 @@ public class IOUtils {
                 identifierFlags[c] = true;
             }
         }
-    }
-    
-    static {
+
         try {
             loadPropertiesFromFile();
         } catch (Throwable e) {
@@ -491,7 +479,10 @@ public class IOUtils {
         int d = 0;
         for (int cc = 0, eLen = (len / 3) * 3; d < eLen;) {
             // Assemble three bytes into an int from four "valid" characters.
-            int i = IA[chars.charAt(sIx++)] << 18 | IA[chars.charAt(sIx++)] << 12 | IA[chars.charAt(sIx++)] << 6 | IA[chars.charAt(sIx++)];
+            int i = IA[chars.charAt(sIx++)] << 18
+                    | IA[chars.charAt(sIx++)] << 12
+                    | IA[chars.charAt(sIx++)] << 6
+                    | IA[chars.charAt(sIx++)];
 
             // Add the bytes
             bytes[d++] = (byte) (i >> 16);
@@ -623,7 +614,9 @@ public class IOUtils {
                 } else {
                     //
                     if (c >= '\uDC00' && c < ('\uDFFF' + 1)) { // Character.isLowSurrogate(c)
-                        throw new JSONException("encodeUTF8 error", new MalformedInputException(1));
+                        bytes[dp++] = (byte) '?';
+                        continue;
+//                        throw new JSONException("encodeUTF8 error", new MalformedInputException(1));
                     } else {
                         uc = c;
                     }
@@ -695,7 +688,7 @@ public class IOUtils {
                                           (((byte) 0xE0 << 12) ^
                                           ((byte) 0x80 <<  6) ^
                                           ((byte) 0x80 <<  0))));
-                        boolean isSurrogate =  c >= Character.MIN_SURROGATE && c < (Character.MAX_SURROGATE + 1);
+                        boolean isSurrogate = c >= '\uD800' && c < ('\uDFFF' + 1);
                         if (isSurrogate) {
                             return -1;
                         } else {
@@ -722,11 +715,12 @@ public class IOUtils {
                     if (((b2 & 0xc0) != 0x80 || (b3 & 0xc0) != 0x80 || (b4 & 0xc0) != 0x80) // isMalformed4
                         ||
                         // shortest form check
-                        !Character.isSupplementaryCodePoint(uc)) {
+                        !(uc >= 0x010000 && uc <  0X10FFFF + 1) // !Character.isSupplementaryCodePoint(uc)
+                    ) {
                         return -1;
                     } else {
-                        da[dp++] =  (char) ((uc >>> 10) + (Character.MIN_HIGH_SURROGATE - (Character.MIN_SUPPLEMENTARY_CODE_POINT >>> 10))); // Character.highSurrogate(uc);
-                        da[dp++] = (char) ((uc & 0x3ff) + Character.MIN_LOW_SURROGATE); // Character.lowSurrogate(uc);
+                        da[dp++] =  (char) ((uc >>> 10) + ('\uD800' - (0x010000 >>> 10))); // Character.highSurrogate(uc);
+                        da[dp++] = (char) ((uc & 0x3ff) + '\uDC00'); // Character.lowSurrogate(uc);
                     }
                     continue;
                 }
