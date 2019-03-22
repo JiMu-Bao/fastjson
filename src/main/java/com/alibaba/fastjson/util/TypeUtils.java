@@ -50,24 +50,7 @@ import java.math.BigInteger;
 import java.security.AccessControlException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.AbstractCollection;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -113,6 +96,16 @@ public class TypeUtils{
     private static Class<? extends Annotation> class_JacksonCreator = null;
     private static boolean class_JacksonCreator_error = false;
 
+    private static volatile Class class_Clob = null;
+    private static volatile boolean class_Clob_error = false;
+
+    private static volatile Class class_XmlAccessType = null;
+    private static volatile Class class_XmlAccessorType = null;
+    private static volatile boolean classXmlAccessorType_error = false;
+    private static volatile Method method_XmlAccessorType_value = null;
+    private static volatile Field field_XmlAccessType_FIELD = null;
+    private static volatile Object field_XmlAccessType_FIELD_VALUE = null;
+
     static{
         try{
             TypeUtils.compatibleWithJavaBean = "true".equals(IOUtils.getStringProperty(IOUtils.FASTJSON_COMPATIBLEWITHJAVABEAN));
@@ -124,6 +117,114 @@ public class TypeUtils{
 
     static{
         addBaseClassMappings();
+    }
+
+
+    public static boolean isXmlField(Class clazz) {
+        if (class_XmlAccessorType == null && !classXmlAccessorType_error) {
+            try {
+                class_XmlAccessorType = Class.forName("javax.xml.bind.annotation.XmlAccessorType");
+            } catch(Throwable ex){
+                classXmlAccessorType_error = true;
+            }
+        }
+
+        if (class_XmlAccessorType == null) {
+            return false;
+        }
+
+        Annotation annotation = clazz.getAnnotation(class_XmlAccessorType);
+        if (annotation == null) {
+            return false;
+        }
+
+        if (method_XmlAccessorType_value == null && !classXmlAccessorType_error) {
+            try {
+                method_XmlAccessorType_value = class_XmlAccessorType.getMethod("value");
+            } catch(Throwable ex){
+                classXmlAccessorType_error = true;
+            }
+        }
+
+        if (method_XmlAccessorType_value == null) {
+            return false;
+        }
+
+        Object value = null;
+        if (!classXmlAccessorType_error) {
+            try {
+                value = method_XmlAccessorType_value.invoke(annotation);
+            } catch (Throwable ex) {
+                classXmlAccessorType_error = true;
+            }
+        }
+        if (value == null) {
+            return false;
+        }
+
+        if (class_XmlAccessType == null && !classXmlAccessorType_error) {
+            try {
+                class_XmlAccessType = Class.forName("javax.xml.bind.annotation.XmlAccessType");
+                field_XmlAccessType_FIELD = class_XmlAccessType.getField("FIELD");
+                field_XmlAccessType_FIELD_VALUE = field_XmlAccessType_FIELD.get(null);
+            } catch(Throwable ex){
+                classXmlAccessorType_error = true;
+            }
+        }
+
+        return value == field_XmlAccessType_FIELD_VALUE;
+    }
+
+    public static Annotation getXmlAccessorType(Class clazz) {
+        if (class_XmlAccessorType == null && !classXmlAccessorType_error) {
+
+            try{
+                class_XmlAccessorType = Class.forName("javax.xml.bind.annotation.XmlAccessorType");
+            } catch(Throwable ex){
+                classXmlAccessorType_error = true;
+            }
+        }
+
+        if (class_XmlAccessorType == null) {
+            return null;
+        }
+
+        return  clazz.getAnnotation(class_XmlAccessorType);
+    }
+
+//
+//    public static boolean isXmlAccessType(Class clazz) {
+//        if (class_XmlAccessType == null && !class_XmlAccessType_error) {
+//
+//            try{
+//                class_XmlAccessType = Class.forName("javax.xml.bind.annotation.XmlAccessType");
+//            } catch(Throwable ex){
+//                class_XmlAccessType_error = true;
+//            }
+//        }
+//
+//        if (class_XmlAccessType == null) {
+//            return false;
+//        }
+//
+//        return  class_XmlAccessType.isAssignableFrom(clazz);
+//    }
+
+    public static boolean isClob(Class clazz) {
+        if (class_Clob == null && !class_Clob_error) {
+
+            try{
+                class_Clob = Class.forName("java.sql.Clob");
+            } catch(Throwable ex){
+                class_Clob_error = true;
+            }
+        }
+
+        if (class_Clob == null) {
+            return false;
+        }
+
+        return  class_Clob.isAssignableFrom(clazz);
     }
 
     public static String castToString(Object value){
@@ -1327,6 +1428,18 @@ public class TypeUtils{
             }
             mappings.put(clazz.getName(), clazz);
         }
+
+        String[] w = new String[]{
+                "java.util.Collections$UnmodifiableMap"
+        };
+        for(String className : w){
+            Class<?> clazz = loadClass(className);
+            if(clazz == null){
+                break;
+            }
+            mappings.put(clazz.getName(), clazz);
+        }
+
         String[] awt = new String[]{
                 "java.awt.Rectangle",
                 "java.awt.Point",
@@ -1339,6 +1452,7 @@ public class TypeUtils{
             }
             mappings.put(clazz.getName(), clazz);
         }
+
         String[] spring = new String[]{
                 "org.springframework.util.LinkedMultiValueMap",
                 "org.springframework.util.LinkedCaseInsensitiveMap",
@@ -1355,6 +1469,7 @@ public class TypeUtils{
                 "org.springframework.security.oauth2.common.DefaultExpiringOAuth2RefreshToken",
                 "org.springframework.security.oauth2.common.DefaultOAuth2AccessToken",
                 "org.springframework.security.oauth2.common.DefaultOAuth2RefreshToken",
+                "org.springframework.cache.support.NullValue",
         };
         for(String className : spring){
             Class<?> clazz = loadClass(className);
@@ -2193,13 +2308,13 @@ public class TypeUtils{
             return getWildcardTypeUpperBounds(actualTypeArguments[0]);
         }
         Class<?> rawClass = (Class<?>) rawType;
-        Map<TypeVariable, Type> typeParameterMap = createTypeParameterMap(rawClass.getTypeParameters(), actualTypeArguments);
+        Map<TypeVariable, Type> actualTypeMap = createActualTypeMap(rawClass.getTypeParameters(), actualTypeArguments);
         Type superType = getCollectionSuperType(rawClass);
         if (superType instanceof ParameterizedType) {
             Class<?> superClass = getRawClass(superType);
             Type[] superClassTypeParameters = ((ParameterizedType) superType).getActualTypeArguments();
             return superClassTypeParameters.length > 0
-                    ? getCollectionItemType(makeParameterizedType(superClass, superClassTypeParameters, typeParameterMap))
+                    ? getCollectionItemType(makeParameterizedType(superClass, superClassTypeParameters, actualTypeMap))
                     : getCollectionItemType(superClass);
         }
         return getCollectionItemType((Class<?>) superType);
@@ -2219,26 +2334,33 @@ public class TypeUtils{
         return assignable == null ? clazz.getGenericSuperclass() : assignable;
     }
 
-    private static Map<TypeVariable, Type> createTypeParameterMap(TypeVariable[] typeParameters, Type[] actualTypeArguments) {
+    private static Map<TypeVariable, Type> createActualTypeMap(TypeVariable[] typeParameters, Type[] actualTypeArguments) {
         int length = typeParameters.length;
-        Map<TypeVariable, Type> typeParameterMap = new HashMap<TypeVariable, Type>(length);
+        Map<TypeVariable, Type> actualTypeMap = new HashMap<TypeVariable, Type>(length);
         for (int i = 0; i < length; i++) {
-            typeParameterMap.put(typeParameters[i], actualTypeArguments[i]);
+            actualTypeMap.put(typeParameters[i], actualTypeArguments[i]);
         }
-        return typeParameterMap;
+        return actualTypeMap;
     }
 
-    private static ParameterizedType makeParameterizedType(Class<?> rawClass, Type[] typeParameters, Map<TypeVariable, Type> typeParameterMap) {
+    private static ParameterizedType makeParameterizedType(Class<?> rawClass, Type[] typeParameters, Map<TypeVariable, Type> actualTypeMap) {
         int length = typeParameters.length;
         Type[] actualTypeArguments = new Type[length];
-        System.arraycopy(typeParameters, 0, actualTypeArguments, 0, length);
-        for (int i = 0; i < actualTypeArguments.length; i++) {
-            Type actualTypeArgument = actualTypeArguments[i];
-            if (actualTypeArgument instanceof TypeVariable) {
-                actualTypeArguments[i] = typeParameterMap.get(actualTypeArgument);
-            }
+        for (int i = 0; i < length; i++) {
+            actualTypeArguments[i] = getActualType(typeParameters[i], actualTypeMap);
         }
         return new ParameterizedTypeImpl(actualTypeArguments, null, rawClass);
+    }
+
+    private static Type getActualType(Type typeParameter, Map<TypeVariable, Type> actualTypeMap) {
+        if (typeParameter instanceof TypeVariable) {
+            return actualTypeMap.get(typeParameter);
+        } else if (typeParameter instanceof ParameterizedType) {
+            return makeParameterizedType(getRawClass(typeParameter), ((ParameterizedType) typeParameter).getActualTypeArguments(), actualTypeMap);
+        } else if (typeParameter instanceof GenericArrayType) {
+            return new GenericArrayTypeImpl(getActualType(((GenericArrayType) typeParameter).getGenericComponentType(), actualTypeMap));
+        }
+        return typeParameter;
     }
 
     private static Type getWildcardTypeUpperBounds(Type type) {
@@ -2337,6 +2459,8 @@ public class TypeUtils{
                 itemType = Object.class;
             }
             list = EnumSet.noneOf((Class<Enum>) itemType);
+        } else if(rawClass.isAssignableFrom(Queue.class)){
+            list = new LinkedList();
         } else{
             try{
                 list = (Collection) rawClass.newInstance();

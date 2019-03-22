@@ -111,6 +111,12 @@ public abstract class JSON implements JSONStreamAware, JSONAware {
                 DEFAULT_PARSER_FEATURE |= Feature.NonStringKeyAsString.getMask();
             }
         }
+
+        {
+            if ("true".equals(properties.getProperty("parser.features.ErrorOnEnumNotMatch"))) {
+                DEFAULT_PARSER_FEATURE |= Feature.ErrorOnEnumNotMatch.getMask();
+            }
+        }
     }
 
     /**
@@ -1001,7 +1007,7 @@ public abstract class JSON implements JSONStreamAware, JSONAware {
             for (Map.Entry<Object, Object> entry : map.entrySet()) {
                 Object key = entry.getKey();
                 String jsonKey = TypeUtils.castToString(key);
-                Object jsonValue = toJSON(entry.getValue());
+                Object jsonValue = toJSON(entry.getValue(), config);
                 json.put(jsonKey, jsonValue);
             }
 
@@ -1014,7 +1020,7 @@ public abstract class JSON implements JSONStreamAware, JSONAware {
             JSONArray array = new JSONArray(collection.size());
 
             for (Object item : collection) {
-                Object jsonValue = toJSON(item);
+                Object jsonValue = toJSON(item, config);
                 array.add(jsonValue);
             }
 
@@ -1223,5 +1229,5 @@ public abstract class JSON implements JSONStreamAware, JSONAware {
         parser.handleResovleTask(value);
     }
 
-    public final static String VERSION = "1.2.55";
+    public final static String VERSION = "1.2.57";
 }
